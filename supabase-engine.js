@@ -1153,6 +1153,7 @@
                         </table>
                     </div>
                     <script>
+                        window.m1close = function() { $('#modallog1').modal('hide'); };
                         $('.btn-subbill-detail').off('click').on('click', function() {
                             var c = $(this).attr('data-cus');
                             var b = $(this).attr('data-bill');
@@ -1283,6 +1284,7 @@
                         </div>
                     </div>
                     <script>
+                        window.m1close = function() { $('#modallog1').modal('hide'); };
                         window.current_acus = ${JSON.stringify(acus)};
                         window.current_abill = ${JSON.stringify(abill)};
 
