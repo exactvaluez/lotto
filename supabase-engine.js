@@ -1191,87 +1191,189 @@
 
                 // 5. billdetail_agent_list.php
                 if (baseFile === 'billdetail_agent_list.php') {
-                    const cus = (urlParams.get('cus') || '').trim();
-                    const bill = (urlParams.get('bill') || '001').trim();
+                    const acus = (urlParams.get('acus') || urlParams.get('cus') || '').trim();
+                    const abill = (urlParams.get('abill') || urlParams.get('bill') || '001').trim();
                     const ctx = await fetchContextData(sb, ds);
-                    const { data: allBets } = await sb.from('bets').select('*').eq('date_sale', ds).eq('cus', cus).order('id', { ascending: true });
+                    const { data: allBets } = await sb.from('bets').select('*').eq('date_sale', ds).eq('cus', acus).order('id', { ascending: true });
                     const rows = (allBets || []).filter(r => {
                         const rb = String(r.bill || '001').trim();
-                        return rb === bill || parseInt(rb, 10) === parseInt(bill, 10);
+                        return rb === abill || parseInt(rb, 10) === parseInt(abill, 10);
                     });
 
-                    let sumTotal = 0;
+                    let sum_bill = 0;
+                    let sum_win_bill = 0;
                     let tbody = '';
-                    rows.forEach((r, idx) => {
-                        const c = calcBetRow(r, ctx.cusMap, ctx.resultRow, ctx.halfNums);
-                        sumTotal += c.sale;
-                        const rowStyle = c.is_win ? 'background-color:#dff0d8; color:#d9534f; font-weight:bold;' : '';
-                        const winBadge = c.is_win ? ` <span class="label label-danger">ถูก ${c.hit_types.join('+')} (${nf(c.win)})</span>` : '';
-                        tbody += `
-                        <tr style="${rowStyle}">
-                            <td style="text-align:center;">${idx + 1}</td>
-                            <td style="text-align:center; font-size:16px;"><b>${esc(r.num)}</b>${winBadge}</td>
-                            <td style="text-align:right;">${parseFloat(r.bet1) > 0 ? nf(r.bet1) : '-'}</td>
-                            <td style="text-align:right;">${parseFloat(r.bet2) > 0 ? nf(r.bet2) : '-'}</td>
-                            <td style="text-align:right;">${parseFloat(r.bet3) > 0 ? nf(r.bet3) : '-'}</td>
-                            <td style="text-align:center;">${esc(r.timenow || '')}</td>
-                            <td style="text-align:center;">
-                                <button type="button" class="btn btn-danger btn-xs btn-del-single-bet" data-id="${r.id}" data-num="${esc(r.num)}">ลบ</button>
-                            </td>
-                        </tr>`;
-                    });
+
+                    if (rows.length === 0) {
+                        tbody = `<tr><td colspan="7" style="text-align:center;color:#999;padding:15px;">ไม่พบรายการในบิลนี้</td></tr>`;
+                    } else {
+                        rows.forEach((r) => {
+                            const id = r.id;
+                            const type_num = String(r.num || '').trim().length;
+                            const c = calcBetRow(r, ctx.cusMap, ctx.resultRow, ctx.halfNums);
+                            const is_row_win = (c.win > 0);
+                            const wt = c.hit_types || [];
+                            const win_col1 = wt.some(h => h.includes('บน') || h.includes('ตรง'));
+                            const win_col2 = wt.some(h => h.includes('ล่าง') && !h.includes('3ตัว') || h.includes('โต๊ต'));
+                            const win_col3 = wt.some(h => h.includes('3ตัวล่าง'));
+
+                            const row_style = is_row_win ? 'background-color:#fff8dc;' : '';
+                            const num_style = is_row_win ? 'color:#d9534f;font-weight:bold;font-size:17px;' : '';
+                            const style_col1 = win_col1 ? 'text-align:center;background-color:#dff0d8;color:#d9534f;font-weight:bold;border:2px solid #5cb85c;' : 'text-align:center;';
+                            const style_col2 = win_col2 ? 'text-align:center;background-color:#dff0d8;color:#d9534f;font-weight:bold;border:2px solid #5cb85c;' : 'text-align:center;';
+                            const style_col3 = win_col3 ? 'text-align:center;background-color:#dff0d8;color:#d9534f;font-weight:bold;border:2px solid #5cb85c;' : 'text-align:center;';
+
+                            sum_bill += (parseFloat(r.bet1 || 0) + parseFloat(r.bet2 || 0) + parseFloat(r.bet3 || 0));
+                            sum_win_bill += (c.win || 0);
+
+                            tbody += `
+                            <tr style="text-align:center;${row_style}">
+                                <td style="vertical-align:middle;${num_style}">
+                                    ${esc(r.num)}
+                                    ${is_row_win ? `<br><span class="label label-danger" style="font-size:10px;">ถูก ${nf(c.win)}</span>` : ''}
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control" style="${style_col1}" id="editten${id}" value="${parseInt(r.bet1, 10) || 0}" disabled>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control" style="${style_col2}" id="edittos${id}" value="${parseInt(r.bet2, 10) || 0}" disabled>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control" style="${style_col3}" id="edittlo${id}" value="${parseInt(r.bet3, 10) || 0}" disabled>
+                                </td>
+                                <td style="vertical-align:middle;font-size:13px;">${esc(r.timenow || '')}</td>
+                                <td style="vertical-align:middle;">${esc(sess.username || 'user1')}</td>
+                                <td style="vertical-align:middle;">
+                                    <button type="button" class="btn btn-warning btn-sm" id="btneditbill${id}" onclick="editbill(${id}, ${type_num})">
+                                        <span id="edittext${id}">แก้ไข</span>
+                                    </button>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="delNumberItem(this)"
+                                        data-id="${id}" 
+                                        data-cus="${esc(acus)}" 
+                                        data-bill="${esc(abill)}" 
+                                        data-numbe="${esc(r.num)}">ลบ</button>
+                                </td>
+                            </tr>`;
+                        });
+                    }
 
                     const html = `
-                    <div class="row" style="margin-bottom:10px;">
-                        <div class="col-md-7">
-                            <h4 style="margin:0;color:#007fff;">สาย: <b>${esc(cus)}</b> | บิลย่อยที่: <b>${esc(bill)}</b></h4>
+                    <div class="panel panel-info">
+                        <div class="panel-heading">รายการบิลย่อย ${esc(abill)}</div>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align: center;">หมายเลข</th>
+                                        <th style="text-align: center;">บน/เต็ง</th>
+                                        <th style="text-align: center;">ล่าง/โต๊ต</th>
+                                        <th style="text-align: center;">3ตัวล่าง</th>
+                                        <th style="text-align: center;" width="140">วันที่บันทึก</th>
+                                        <th style="text-align: center;">USER</th>
+                                        <th style="text-align: center;" width="130">จัดการ แก้ไข</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${tbody}</tbody>
+                            </table>
+                            <hr style="margin-top:5px;margin-bottom:10px;">
+                            <div style="text-align:center;margin-bottom:15px;">
+                                <h3>ยอดรวมบิลนี้ <span style="color:red">${nf(sum_bill)}</span> บาท</h3>
+                                ${sum_win_bill > 0 ? `<h4 style="color:#5cb85c;font-weight:bold;">ยอดถูกรางวัลบิลนี้: <span style="color:#d9534f;">${nf(sum_win_bill)}</span> บาท</h4>` : ''}
+                            </div>
                         </div>
-                        <div class="col-md-5" style="text-align:right;">
-                            <h4 style="margin:0;color:#c12e2a;">รวมบิลนี้: <b>${nf(sumTotal)}</b> บาท</h4>
-                        </div>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered">
-                            <thead>
-                                <tr style="background:#f5f5f5;">
-                                    <th style="text-align:center;">ลำดับ</th>
-                                    <th style="text-align:center;">หมายเลข</th>
-                                    <th style="text-align:right;">บน / 3ตัวตรง</th>
-                                    <th style="text-align:right;">ล่าง / 3ตัวโต๊ด</th>
-                                    <th style="text-align:right;">3ตัวล่าง</th>
-                                    <th style="text-align:center;">เวลา</th>
-                                    <th style="text-align:center;">จัดการ</th>
-                                </tr>
-                            </thead>
-                            <tbody>${tbody}</tbody>
-                        </table>
                     </div>
                     <script>
-                        function m1close() { $('#modallog1').modal('hide'); }
-                        $('.btn-del-single-bet').off('click').on('click', function() {
-                            var id = $(this).attr('data-id');
-                            var num = $(this).attr('data-num');
+                        window.current_acus = ${JSON.stringify(acus)};
+                        window.current_abill = ${JSON.stringify(abill)};
+
+                        window.editbill = function(id, type_number) {
+                            var asd = document.getElementById('btneditbill' + id);
+
+                            if (document.getElementById('editten' + id).disabled == true) {
+                                document.getElementById('editten' + id).disabled = false;
+                                document.getElementById('edittos' + id).disabled = false;
+                                if (type_number == 3) {
+                                    document.getElementById('edittlo' + id).disabled = false;
+                                }
+                                document.getElementById('edittext' + id).innerHTML = "บันทึก";
+                                asd.setAttribute('class', 'btn btn-success btn-sm');
+                                document.getElementById('editten' + id).focus();
+                                document.getElementById('editten' + id).select();
+                            } else {
+                                if (document.getElementById('editten' + id).value == '') document.getElementById('editten' + id).value = 0;
+                                if (document.getElementById('edittlo' + id).value == '') document.getElementById('edittlo' + id).value = 0;
+                                if (document.getElementById('edittos' + id).value == '') document.getElementById('edittos' + id).value = 0;
+
+                                var tenk = document.getElementById('editten' + id).value;
+                                var tlow = document.getElementById('edittlo' + id).value;
+                                var tose = document.getElementById('edittos' + id).value;
+
+                                document.getElementById('editten' + id).disabled = true;
+                                document.getElementById('edittlo' + id).disabled = true;
+                                document.getElementById('edittos' + id).disabled = true;
+                                document.getElementById('edittext' + id).innerHTML = "แก้ไข";
+                                asd.setAttribute('class', 'btn btn-warning btn-sm');
+
+                                $.ajax({
+                                    method: "POST",
+                                    url: "lotto.php",
+                                    data: {
+                                        editbill: id,
+                                        tenk: tenk,
+                                        tose: tose,
+                                        tlow: tlow
+                                    },
+                                    success: function(val) {
+                                        $('#mobilllog').load('billdetail_agent_list.php?acus=' + encodeURIComponent(window.current_acus) + '&abill=' + encodeURIComponent(window.current_abill));
+                                        $('#mlogbill').load('logbillagent.php?cus=' + encodeURIComponent(window.current_acus));
+                                        $('#showbill').load('logbill.php');
+                                        if (typeof total1 === 'function') total1();
+                                        if (typeof total2 === 'function') total2();
+                                        if (typeof total3 === 'function') total3();
+                                        if (typeof totalsale === 'function') totalsale();
+                                    }
+                                });
+                            }
+                        };
+
+                        window.delNumberItem = function(btn) {
+                            var id = $(btn).attr('data-id');
+                            var datacus = $(btn).attr('data-cus');
+                            var databill = $(btn).attr('data-bill');
+                            var numbe = $(btn).attr('data-numbe');
+
                             swal({
-                                title: 'ลบหมายเลข ' + num + ' ?',
-                                type: 'warning',
+                                title: 'ลบ ' + numbe,
+                                type: 'question',
                                 showCancelButton: true,
-                                confirmButtonText: 'ลบ',
-                                cancelButtonText: 'ยกเลิก'
-                            }).then(function(res) {
-                                if (res.value) {
+                                allowOutsideClick: false,
+                                confirmButtonColor: '#3085d6',
+                                cancelButtonColor: '#d33',
+                                confirmButtonText: 'ใช่',
+                                cancelButtonText: 'ไม่'
+                            }).then(function(result) {
+                                if (result && (result.value || result === true)) {
                                     $.ajax({
-                                        method: 'POST',
-                                        url: 'lotto.php',
-                                        data: { delnumberbill: id },
-                                        success: function() {
-                                            $('#mobilllog').load('billdetail_agent_list.php?cus=${encodeURIComponent(cus)}&bill=${encodeURIComponent(bill)}');
-                                            $('#mlogbill').load('logbillagent.php?cus=${encodeURIComponent(cus)}');
-                                            tab1_ref();
+                                        method: "POST",
+                                        url: "lotto.php",
+                                        data: {
+                                            delnumberbill: id
+                                        },
+                                        success: function(val) {
+                                            if ($.trim(val) == 'ok') {
+                                                $('#mobilllog').load('billdetail_agent_list.php?acus=' + encodeURIComponent(datacus) + '&abill=' + encodeURIComponent(databill));
+                                                $('#mlogbill').load('logbillagent.php?cus=' + encodeURIComponent(datacus));
+                                                $('#showbill').load('logbill.php');
+                                                if (typeof total1 === 'function') total1();
+                                                if (typeof total2 === 'function') total2();
+                                                if (typeof total3 === 'function') total3();
+                                                if (typeof totalsale === 'function') totalsale();
+                                            }
                                         }
                                     });
                                 }
                             });
-                        });
+                        };
                     <\/script>`;
                     $el.html(html);
                     return;
