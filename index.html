@@ -1,4 +1,19 @@
 <!DOCTYPE html><html class="hydrated"><head>
+    <script>
+        (function() {
+            try {
+                var s = localStorage.getItem('LOTTO_SESSION');
+                var sess = s ? JSON.parse(s) : null;
+                if (!sess || !sess.username) {
+                    document.documentElement.style.display = 'none';
+                    window.location.replace("login.html");
+                }
+            } catch (e) {
+                document.documentElement.style.display = 'none';
+                window.location.replace("login.html");
+            }
+        })();
+    </script>
     <title>Lotto Management</title>
     <meta charset="UTF-8"><style data-styles="">ion-icon{visibility:hidden}.hydrated{visibility:inherit}</style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
