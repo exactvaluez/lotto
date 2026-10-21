@@ -467,7 +467,7 @@
                     return;
                 }
                 if (data.chlock !== undefined) {
-                    sess.chlock = parseInt(data.chlock, 10) || 0;
+                    sess.chlock = (data.chlock === 'checked' || data.chlock === 1 || data.chlock === '1' || data.chlock === true) ? 1 : 0;
                     sess.lock_cus = String(data.cus || '').trim();
                     saveSession(sess);
                     success('ok');
@@ -872,17 +872,57 @@
                 // 2. newkey_num.php
                 if (baseFile === 'newkey_num.php') {
                     const ctx = await fetchContextData(sb, ds);
-                    window.closedNumbersList = ctx.closedNums;
-                    const curSel = $('#txt_note').val() || (sess.chlock ? sess.lock_cus : '');
+                    window.closedNumbersList = ctx.closedNums || [];
+                    window.halfNumbersList = ctx.halfNums ? Object.keys(ctx.halfNums) : [];
+
+                    const defaultCusList = [
+                        '10เปอร์เซนต์', '20เปอร์เซนต์', '30เปอร์เซนต์', 'ตู่', 'ต๋อง', 'นนท์', 'นอก',
+                        'น้าจิตร', 'น้าอุ๋ย', 'น้าไหม', 'ป้านวย', 'ป้าเพลิน', 'ป้าแขก', 'ฝ้าย',
+                        'พี่จิ้ม', 'พี่นก', 'พี่สมร', 'พี่อ้อม', 'พี่เกมส์', 'พี่เปย์', 'พี่แต๋ม',
+                        'พี่แนน', 'ลาวพี่อ้อม', 'ลุงคิด', 'อัจจิมา', 'อั้ม', 'เดียร์', 'แคท',
+                        'แม่ติ๋ว', 'ไม่หักเปอร์เซนต์'
+                    ];
+
+                    let cusList = [];
+                    if (ctx.customers && ctx.customers.length > 0) {
+                        cusList = ctx.customers.map(c => (typeof c === 'string' ? c : c.name));
+                    } else {
+                        const existingOpts = [];
+                        $('#txt_note option').each(function() {
+                            const v = $(this).val();
+                            if (v) existingOpts.push(v);
+                        });
+                        cusList = existingOpts.length > 0 ? existingOpts : defaultCusList;
+                    }
+
+                    const isLocked = !!(sess.chlock && String(sess.chlock) !== '0');
+                    const curSel = isLocked ? (sess.lock_cus || '') : ($('#txt_note').val() || '');
+
                     let opts = '<option value="">เลือก</option>';
-                    ctx.customers.forEach(c => {
-                        const sel = (c.name === curSel) ? 'selected' : '';
-                        opts += `<option value="${esc(c.name)}" ${sel}>${esc(c.name)}</option>`;
+                    cusList.forEach(cname => {
+                        const sel = (cname === curSel) ? 'selected' : '';
+                        opts += `<option value="${esc(cname)}" ${sel}>${esc(cname)}</option>`;
                     });
+
                     if ($('#txt_note').length > 0) {
                         $('#txt_note').html(opts);
-                        if (curSel) getautobill(curSel);
+                        if (curSel) {
+                            $('#txt_note').val(curSel);
+                            getautobill(curSel);
+                        }
                     }
+
+                    if (isLocked) {
+                        $('#Checkcus').prop('checked', true).prop('disabled', false);
+                        $('#txt_note').prop('disabled', true);
+                    } else {
+                        $('#Checkcus').prop('checked', false).prop('disabled', false);
+                        $('#txt_note').prop('disabled', false);
+                    }
+
+                    $('#txtbill').prop('disabled', false);
+                    $('#btnbegin').prop('disabled', false);
+
                     return;
                 }
 
