@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <title>Login - Lotto Management</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="Login_v14/images/icons/favicon.ico"/>
+    <link rel="stylesheet" type="text/css" href="Login_v14/fonts/font-awesome-4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" type="text/css" href="Login_v14/fonts/Linearicons-Free-v1.0.0/icon-font.min.css">
+    <link rel="stylesheet" type="text/css" href="Login_v14/vendor/animate/animate.css">
+    <link rel="stylesheet" type="text/css" href="Login_v14/vendor/css-hamburgers/hamburgers.min.css">
+    <link rel="stylesheet" type="text/css" href="Login_v14/vendor/animsition/css/animsition.min.css">
+    <link rel="stylesheet" type="text/css" href="Login_v14/vendor/select2/select2.min.css">
+    <link rel="stylesheet" type="text/css" href="Login_v14/vendor/daterangepicker/daterangepicker.css">
+    <link rel="stylesheet" type="text/css" href="Login_v14/css/util.css">
+    <link rel="stylesheet" type="text/css" href="Login_v14/css/main.css">
+
+    <link rel="stylesheet" href="assets/jquery/jquery-ui.css">
+    <link href="assets/css/bootstrap.min.css" rel="stylesheet">
+
+    <script src="assets/js/jquery-3.2.1.min.js" type="text/javascript"></script>
+    <script src="assets/jquery/jquery-ui.js"></script>
+    <script src="assets/js/bootstrap.min.js"></script>
+    <script src="assets/js/sweetalert2.all.js"></script>
+
+    <!-- Supabase JS SDK + Config + Engine -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="supabase-engine.js"></script>
+</head>
+<body>
+
+<div class="limiter">
+    <div class="container-login100">
+        <div class="wrap-login100 p-l-85 p-r-85 p-t-55 p-b-55">
+            <form class="login100-form validate-form flex-sb flex-w" onsubmit="return false;">
+                <span class="login100-form-title p-b-20">
+                    Account Login
+                </span>
+                <div style="width:100%; margin-bottom:15px; text-align:right;">
+                    <button type="button" class="btn btn-default btn-xs" onclick="openSupabaseModal()">
+                        <i class="fa fa-database"></i> ตั้งค่าเชื่อมต่อ Supabase
+                    </button>
+                </div>
+
+                <span class="txt1 p-b-11">
+                    Username
+                </span>
+                <div class="wrap-input100 validate-input m-b-36" data-validate="Username is required">
+                    <input class="input100" type="text" id="username" value="">
+                    <span class="focus-input100"></span>
+                </div>
+
+                <span class="txt1 p-b-11">
+                    Password
+                </span>
+                <div class="wrap-input100 validate-input m-b-12" data-validate="Password is required">
+                    <span class="btn-show-pass">
+                        <i class="fa fa-eye" onclick="togglePass()"></i>
+                    </span>
+                    <input class="input100" type="password" id="pass" value="">
+                    <span class="focus-input100"></span>
+                </div>
+
+                <div class="flex-sb-m w-full p-b-48">
+                    <div class="contact100-form-checkbox">
+                        <input class="input-checkbox100" id="ckb1" type="checkbox" name="remember-me">
+                        <label class="label-checkbox100" for="ckb1">
+                            จำรหัสผ่าน
+                        </label>
+                    </div>
+                </div>
+            </form>
+
+            <div class="container-login100-form-btn">
+                <button type="button" class="login100-form-btn" onclick="login()">
+                    Login
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal เลือกงวดประจำวันที่ -->
+<div id="myModal" class="modal fade" role="dialog" data-backdrop="static">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">งวดประจำวันที่ ที่จะขาย</h4>
+            </div>
+            <div class="modal-body">
+                <div class="panel panel-danger">
+                    <div class="panel-body">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="datepicker" autocomplete="off">
+                            <span class="input-group-addon"><i class="glyphicon glyphicon-calendar"></i></span>
+                        </div>
+                        <div class="row" style="margin-top: 15px; text-align: center;">
+                            <div class="col-md-12">
+                                <button type="button" class="btn btn-primary" onclick="newdate()">ตกลง</button>
+                                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal ตั้งค่า Supabase -->
+<div id="modalSupabase" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title"><i class="fa fa-database"></i> ตั้งค่าการเชื่อมต่อฐานข้อมูล Supabase</h4>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Supabase Project URL</label>
+                    <input type="text" id="sb_url" class="form-control" placeholder="เช่น https://xxxxxxxxxxxx.supabase.co">
+                </div>
+                <div class="form-group">
+                    <label>Supabase Anon Public Key</label>
+                    <textarea id="sb_key" class="form-control" rows="3" placeholder="เช่น eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></textarea>
+                </div>
+                <p style="font-size:12px;color:#666;">
+                    * ดูค่าได้จากหน้าเว็บ Supabase -> Project Settings -> API -> คัดลอก Project URL และ anon public key มาวาง (หรือแก้ไขถาวรในไฟล์ <code>supabase-config.js</code>)
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" onclick="saveSupabaseConfig()">บันทึกการตั้งค่า</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">ปิด</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(function () {
+        var remUser = localStorage.getItem('LOTTO_REMEMBER_USER') || '';
+        var remPass = localStorage.getItem('LOTTO_REMEMBER_PASS') || '';
+        if (remUser) {
+            $('#username').val(remUser);
+            $('#pass').val(remPass);
+            $('#ckb1').prop('checked', true);
+        }
+
+        var d = new Date();
+        var toDay = ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + (d.getFullYear() + 543);
+        $('#datepicker').val(toDay);
+
+        $("#datepicker").datepicker({
+            dateFormat: 'dd/mm/yy',
+            isBuddhist: true,
+            defaultDate: toDay,
+            dayNames: ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'],
+            dayNamesMin: ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'],
+            monthNames: ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'],
+            monthNamesShort: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
+        });
+
+        $('#username').focus();
+    });
+
+    function openSupabaseModal() {
+        var curUrl = localStorage.getItem('LOTTO_SUPABASE_URL') || (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) || '';
+        var curKey = localStorage.getItem('LOTTO_SUPABASE_KEY') || (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.anonKey) || '';
+        if (curUrl.indexOf('ใส่_SUPABASE') !== -1) curUrl = '';
+        if (curKey.indexOf('ใส่_SUPABASE') !== -1) curKey = '';
+        $('#sb_url').val(curUrl);
+        $('#sb_key').val(curKey);
+        $('#modalSupabase').modal('show');
+    }
+
+    function saveSupabaseConfig() {
+        var u = $('#sb_url').val().trim();
+        var k = $('#sb_key').val().trim();
+        if (!u || !k) {
+            swal('กรุณากรอกข้อมูลให้ครบ', 'ใส่ทั้ง Project URL และ Anon Key', 'warning');
+            return;
+        }
+        localStorage.setItem('LOTTO_SUPABASE_URL', u);
+        localStorage.setItem('LOTTO_SUPABASE_KEY', k);
+        window.SUPABASE_CONFIG = { url: u, anonKey: k };
+        $('#modalSupabase').modal('hide');
+        swal('บันทึกการเชื่อมต่อ Supabase สำเร็จ', 'สามารถเข้าสู่ระบบได้เลยครับ', 'success');
+    }
+
+    function togglePass() {
+        var x = document.getElementById("pass");
+        x.type = (x.type === "password") ? "text" : "password";
+    }
+
+    function login() {
+        var name = $('#username').val().trim();
+        var pass = $('#pass').val().trim();
+        var loginsave = $('#ckb1').is(':checked');
+
+        if (!name || !pass) {
+            swal({
+                title: "กรุณากรอก Username และ Password",
+                type: "warning",
+                button: "OK"
+            });
+            return;
+        }
+
+        $.ajax({
+            method: "POST",
+            url: "lotto.php",
+            data: {
+                login_name: name,
+                login_pass: pass,
+                loginsave: loginsave
+            },
+            success: function (msg) {
+                var res = $.trim(msg);
+                if (res === 'user' || res === 'Main' || res === 'DEMO') {
+                    // Update datepicker to active date_sale in session if available
+                    var sess = window.LottoSession.get();
+                    if (sess && sess.date_sale && sess.date_sale.length === 8) {
+                        var y = parseInt(sess.date_sale.substring(0, 4), 10) + 543;
+                        var m = sess.date_sale.substring(4, 6);
+                        var dd = sess.date_sale.substring(6, 8);
+                        $('#datepicker').val(dd + '/' + m + '/' + y);
+                    }
+                    $('#myModal').modal('show');
+                } else if (res === 'ng') {
+                    swal({
+                        title: "พาสเวิร์ด หรือยูสเซอร์ ไม่ถูกต้อง!",
+                        text: "กรุณาตรวจสอบใหม่อีกครั้ง!",
+                        type: "warning",
+                        button: "OK"
+                    });
+                } else if (res === 'payfirst') {
+                    swal({
+                        title: "บัญชีผู้ใช้นี้ถูกระงับชั่วคราว",
+                        text: "กรุณาติดต่อผู้ดูแลระบบ",
+                        type: "warning",
+                        button: "OK"
+                    });
+                }
+            }
+        });
+    }
+
+    $('#username').keypress(function (e) {
+        if (e.keyCode == 13) {
+            $('#pass').focus();
+        }
+    });
+
+    $('#pass').keypress(function (e) {
+        if (e.keyCode == 13) {
+            login();
+        }
+    });
+
+    function newdate() {
+        var raw = $('#datepicker').val().trim();
+        var parts = raw.split('/');
+        var newdateVal = '';
+        if (parts.length === 3) {
+            var dd = ('0' + parseInt(parts[0], 10)).slice(-2);
+            var mm = ('0' + parseInt(parts[1], 10)).slice(-2);
+            var yyyy = parseInt(parts[2], 10);
+            if (yyyy > 2400) {
+                yyyy = yyyy - 543;
+            }
+            newdateVal = yyyy.toString() + mm + dd;
+        } else {
+            var now = new Date();
+            newdateVal = now.getFullYear().toString() + ('0' + (now.getMonth() + 1)).slice(-2) + ('0' + now.getDate()).slice(-2);
+        }
+
+        $.ajax({
+            method: "POST",
+            url: "lotto.php",
+            data: { newdate: newdateVal },
+            success: function (msg) {
+                if ($.trim(msg) === '1') {
+                    window.location.href = "index.html";
+                } else {
+                    swal({
+                        title: "รูปแบบวันที่ไม่ถูกต้อง!",
+                        text: "กรุณาเลือกวันที่จากปฏิทินอีกครั้ง",
+                        type: "warning",
+                        button: "OK"
+                    });
+                }
+            }
+        });
+    }
+</script>
+</body>
+</html>

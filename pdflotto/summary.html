@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <title>สรุปยอดขายทั้งหมด</title>
+    <script src="../assets/js/jquery-3.2.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-config.js"></script>
+    <script src="../supabase-engine.js"></script>
+    <style>
+        body { font-family: 'Tahoma', sans-serif; font-size: 14px; padding: 20px; }
+        .box { max-width: 650px; margin: auto; border: 1px solid #ccc; padding: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: center; }
+        th { background: #f0f0f0; }
+        .text-right { text-align: right; }
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="box" id="report_box">กำลังโหลดข้อมูล...</div>
+    <script>
+        $(async function() {
+            const sess = window.LottoSession.get();
+            const ds = sess.date_sale || '20261020';
+            const sb = window.getSupabaseClient();
+            if (!sb) { $('#report_box').html('ยังไม่ได้ตั้งค่า Supabase'); return; }
+
+            const ctx = await window.LottoCalc.fetchContextData(sb, ds);
+            const { data: bets } = await sb.from('bets').select('*').eq('date_sale', ds);
+            const hasResult = !!(ctx.resultRow && String(ctx.resultRow.hight || '').trim() !== '');
+            const nf = window.LottoCalc.nf;
+            const esc = window.LottoCalc.esc;
+
+            const cusGroups = {};
+            (bets || []).forEach(b => {
+                const cname = String(b.cus || 'ไม่ระบุ').trim();
+                if (!cusGroups[cname]) cusGroups[cname] = { sale: 0, net: 0, win: 0, profit: 0 };
+                const c = window.LottoCalc.calcBetRow(b, ctx.cusMap, ctx.resultRow, ctx.halfNums);
+                cusGroups[cname].sale += c.sale;
+                cusGroups[cname].net += c.net;
+                cusGroups[cname].win += c.win;
+                cusGroups[cname].profit += c.profit;
+            });
+
+            let rowsHtml = '';
+            let sumSale = 0, sumNet = 0, sumWin = 0, sumProfit = 0;
+            Object.keys(cusGroups).sort((a,b) => a.localeCompare(b, 'th')).forEach(cname => {
+                const st = cusGroups[cname];
+                sumSale += st.sale; sumNet += st.net; sumWin += st.win; sumProfit += st.profit;
+                rowsHtml += `<tr>
+                    <td><b>${esc(cname)}</b></td>
+                    <td class="text-right">${nf(st.sale)}</td>
+                    <td class="text-right">${nf(st.net)}</td>
+                    <td class="text-right">${hasResult ? nf(st.win) : 'รอผล'}</td>
+                    <td class="text-right">${hasResult ? nf(st.profit) : 'รอผล'}</td>
+                </tr>`;
+            });
+
+            $('#report_box').html(`
+                <div style="text-align:center;">
+                    <h2>สรุปยอดขายงวดประจำวันที่: ${window.thaiDateLong(ds)}</h2>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>ชื่อลูกค้า</th><th>ยอดขาย</th><th>หลังหักส่วนลด</th><th>ถูกรางวัล</th><th>ผล +/-</th></tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                    <tfoot>
+                        <tr style="background:#f7ecb5;font-weight:bold;">
+                            <td>รวมทั้งสิ้น</td>
+                            <td class="text-right">${nf(sumSale)}</td>
+                            <td class="text-right">${nf(sumNet)}</td>
+                            <td class="text-right">${hasResult ? nf(sumWin) : '0'}</td>
+                            <td class="text-right">${hasResult ? nf(sumProfit) : '0'}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <div class="no-print" style="text-align:center;margin-top:20px;">
+                    <button onclick="window.print()" style="padding:8px 20px;font-size:16px;cursor:pointer;">พิมพ์เอกสาร</button>
+                </div>
+            `);
+        });
+    </script>
+</body>
+</html>

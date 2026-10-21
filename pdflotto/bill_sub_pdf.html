@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <title>ใบเสร็จบิลย่อย</title>
+    <script src="../assets/js/jquery-3.2.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../supabase-config.js"></script>
+    <script src="../supabase-engine.js"></script>
+    <style>
+        body { font-family: 'Tahoma', sans-serif; font-size: 14px; padding: 20px; }
+        .box { max-width: 600px; margin: auto; border: 1px solid #ccc; padding: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: center; }
+        th { background: #f0f0f0; }
+        .text-right { text-align: right; }
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="box" id="report_box">กำลังโหลดข้อมูล...</div>
+    <script>
+        $(async function() {
+            const params = new URLSearchParams(window.location.search);
+            const cus = (params.get('cus') || '').trim();
+            const bill = (params.get('bill') || '001').trim();
+            const sess = window.LottoSession.get();
+            const ds = sess.date_sale || '20261020';
+            const sb = window.getSupabaseClient();
+            if (!sb) { $('#report_box').html('ยังไม่ได้ตั้งค่า Supabase'); return; }
+
+            const { data: allBets } = await sb.from('bets').select('*').eq('date_sale', ds).eq('cus', cus).order('id', { ascending: true });
+            const rows = (allBets || []).filter(r => {
+                const rb = String(r.bill || '001').trim();
+                return rb === bill || parseInt(rb, 10) === parseInt(bill, 10);
+            });
+
+            const nf = window.LottoCalc.nf;
+            const esc = window.LottoCalc.esc;
+            let total = 0;
+            let rowsHtml = '';
+            rows.forEach((item, idx) => {
+                const b1 = parseFloat(item.bet1 || 0);
+                const b2 = parseFloat(item.bet2 || 0);
+                const b3 = parseFloat(item.bet3 || 0);
+                total += b1 + b2 + b3;
+                rowsHtml += `<tr>
+                    <td>${idx + 1}</td>
+                    <td><b>${esc(item.num)}</b></td>
+                    <td class="text-right">${b1 > 0 ? nf(b1) : '-'}</td>
+                    <td class="text-right">${b2 > 0 ? nf(b2) : '-'}</td>
+                    <td class="text-right">${b3 > 0 ? nf(b3) : '-'}</td>
+                </tr>`;
+            });
+
+            $('#report_box').html(`
+                <div style="text-align:center;">
+                    <h2>ใบเสร็จบิลย่อย: ${esc(bill)}</h2>
+                    <p>ลูกค้า / สาย: <b>${esc(cus)}</b> | งวด: ${window.thaiDateLong(ds)}</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>ลำดับ</th><th>หมายเลข</th><th>บน/ตรง</th><th>ล่าง/โต๊ด</th><th>3ล่าง</th></tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                    <tfoot>
+                        <tr style="background:#f7ecb5;font-weight:bold;">
+                            <td colspan="2">รวมทั้งหมด</td>
+                            <td colspan="3" class="text-right">${nf(total)} บาท</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <div class="no-print" style="text-align:center;margin-top:20px;">
+                    <button onclick="window.print()" style="padding:8px 20px;font-size:16px;cursor:pointer;">พิมพ์เอกสาร</button>
+                </div>
+            `);
+        });
+    </script>
+</body>
+</html>
