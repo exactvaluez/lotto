@@ -1,16 +1,26 @@
 <!DOCTYPE html><html class="hydrated"><head>
+    <style id="auth-shield">html { display: none !important; }</style>
     <script>
         (function() {
             try {
                 var s = localStorage.getItem('LOTTO_SESSION');
                 var sess = s ? JSON.parse(s) : null;
                 if (!sess || !sess.username) {
-                    document.documentElement.style.display = 'none';
-                    window.location.replace("login.html");
+                    var t = window.location.href.split('?')[0].split('#')[0];
+                    if (!t.endsWith('/')) {
+                        if (t.endsWith('index.html')) {
+                            t = t.substring(0, t.length - 'index.html'.length);
+                        } else {
+                            t = t + '/';
+                        }
+                    }
+                    window.location.replace(t + 'login.html');
+                    return;
                 }
+                var shield = document.getElementById('auth-shield');
+                if (shield) shield.remove();
             } catch (e) {
-                document.documentElement.style.display = 'none';
-                window.location.replace("login.html");
+                window.location.replace('login.html');
             }
         })();
     </script>
