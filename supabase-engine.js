@@ -923,6 +923,26 @@
                     $('#txtbill').prop('disabled', false);
                     $('#btnbegin').prop('disabled', false);
 
+                    // Clean tbExp table rows (keep only header row) - no input rows until 'เริ่มขาย'
+                    const tb = document.getElementById('tbExp');
+                    if (tb) {
+                        while (tb.rows.length > 1) {
+                            tb.deleteRow(1);
+                        }
+                    }
+                    if (document.getElementById('txt_table_length')) document.getElementById('txt_table_length').value = '0';
+                    if (document.getElementById('txt_keepname_onclick')) document.getElementById('txt_keepname_onclick').value = '0';
+                    if (document.getElementById('txt_keepname')) document.getElementById('txt_keepname').value = '';
+                    if (document.getElementById('totalbill')) document.getElementById('totalbill').value = '0';
+                    if (document.getElementById('txtinvite')) document.getElementById('txtinvite').innerHTML = '';
+                    if (document.getElementById('sums')) document.getElementById('sums').innerHTML = '0';
+                    if (document.getElementById('btninsert')) document.getElementById('btninsert').disabled = true;
+
+                    if (document.getElementById('txt41')) document.getElementById('txt41').disabled = true;
+                    if (document.getElementById('txt42')) document.getElementById('txt42').disabled = true;
+                    if (document.getElementById('txt43')) document.getElementById('txt43').disabled = true;
+                    if (document.getElementById('txt44')) document.getElementById('txt44').disabled = true;
+
                     return;
                 }
 
