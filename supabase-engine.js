@@ -251,7 +251,14 @@
         }
 
         const data = options.data || {};
-        const success = options.success || function () {};
+        const rawSuccess = options.success || function () {};
+        const success = function (res) {
+            try {
+                rawSuccess(res);
+            } catch (cbErr) {
+                console.warn('Callback warning:', cbErr);
+            }
+        };
         const sb = getSupabase();
         const sess = getSession();
 
