@@ -25,8 +25,8 @@
 
     <!-- Supabase JS SDK + Config + Engine -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js"></script>
-    <script src="supabase-engine.js"></script>
+    <script src="supabase-config.js?v=2"></script>
+    <script src="supabase-engine.js?v=2"></script>
 </head>
 <body>
 
@@ -175,12 +175,13 @@
     }
 
     function saveSupabaseConfig() {
-        var u = $('#sb_url').val().trim();
+        var u = $('#sb_url').val().trim().replace(/\/rest\/v1\/?$/i, '').replace(/\/+$/, '');
         var k = $('#sb_key').val().trim();
         if (!u || !k) {
             swal('กรุณากรอกข้อมูลให้ครบ', 'ใส่ทั้ง Project URL และ Anon Key', 'warning');
             return;
         }
+        $('#sb_url').val(u);
         localStorage.setItem('LOTTO_SUPABASE_URL', u);
         localStorage.setItem('LOTTO_SUPABASE_KEY', k);
         window.SUPABASE_CONFIG = { url: u, anonKey: k };
