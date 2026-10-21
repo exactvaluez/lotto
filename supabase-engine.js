@@ -1493,7 +1493,17 @@
                     </div>`;
                     $el.html(html);
                     if ($.fn.DataTable) {
-                        $el.find('.dt-detail').DataTable({ pageLength: 25 });
+                        $el.find('.dt-detail').each(function() {
+                            var numCols = $(this).find('thead th').length;
+                            var columnDefs = [];
+                            for (var c = 1; c < numCols; c++) {
+                                columnDefs.push({ targets: c, searchable: false });
+                            }
+                            $(this).DataTable({
+                                pageLength: 25,
+                                columnDefs: columnDefs
+                            });
+                        });
                     }
                     return;
                 }
@@ -1575,7 +1585,17 @@
                     </div>`;
                     $el.html(html);
                     if ($.fn.DataTable) {
-                        $el.find('.dt-detail1').DataTable({ pageLength: 25, order: [] });
+                        $el.find('.dt-detail1').each(function() {
+                            var is3 = $(this).find('thead th').length === 7;
+                            var nonSearchable = is3 ? [1, 2, 3] : [1, 2];
+                            $(this).DataTable({
+                                pageLength: 25,
+                                order: [],
+                                columnDefs: [
+                                    { targets: nonSearchable, searchable: false }
+                                ]
+                            });
+                        });
                     }
                     return;
                 }
