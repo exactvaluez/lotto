@@ -927,16 +927,16 @@
                                 <b>${hasResult ? nf(st.win) : 'รอผล'}</b>
                             </td>
                             <td style="padding: 4px 2px 0px 2px;text-align: right;color:${hasResult ? pColor : 'orange'};">
-                                <b>${hasResult ? nf(st.profit) : 'รอผล'}</b>
+                                <b>${hasResult ? (st.profit >= 0 ? nf(st.profit) : nf(st.profit)) : 'รอผล'}</b>
                             </td>
                             <td style="padding: 2px 2px 2px 2px;text-align: center; white-space: nowrap;">
-                                <a href="javascript:void(0)" id="editbills" data-cus="${esc(cname)}" class="btn btn-info btn-xs">เพิ่มเลข</a>
-                                <a href="pdflotto/bill_pdf.html?cus=${encodeURIComponent(cname)}" target="_blank" class="btn btn-warning btn-xs">PDF</a>
-                                <a href="javascript:void(0)" id="delbill" data-cus="${esc(cname)}" class="btn btn-danger btn-xs">ลบ</a>
+                                <a href="javascript:void(0)" id="showlogbill" data-cus="${esc(cname)}" data-sumbill="${Math.round(st.sale)}" class="btn btn-success btn-xs" style="padding: 1px 5px;">บิล</a>
+                                <a href="pdflotto/bill_pdf.html?cus=${encodeURIComponent(cname)}" target="_blank" class="btn btn-primary btn-xs" style="padding: 1px 5px;">PDF</a>
                             </td>
                         </tr>`;
                     });
 
+                    const profitText = sumProfit >= 0 ? `กำไร +${nf(sumProfit)} บาท` : `ขาดทุน ${nf(sumProfit)} บาท`;
                     const sumProfitColor = sumProfit >= 0 ? 'green' : 'red';
                     const html = `
                     <div class="row">
@@ -1000,8 +1000,8 @@
                                 </tr>
                                 <tr>
                                     <td style="padding: 4px 2px 0px 2px;text-align: right;"><b>สรุปผลกำไรขาดทุน</b></td>
-                                    <td colspan="4" style="padding: 4px 2px 0px 2px;text-align: center;color:${hasResult ? sumProfitColor : 'orange'};font-size:18px;">
-                                        <b>${hasResult ? (sumProfit >= 0 ? '+' + nf(sumProfit) : nf(sumProfit)) : 'รอผล'}</b>
+                                    <td colspan="4" style="padding: 4px 2px 0px 2px;text-align: center;color:${hasResult ? sumProfitColor : 'orange'};font-size:16px;">
+                                        <b>${hasResult ? profitText : 'รอผล'}</b>
                                     </td>
                                 </tr>
                             </tbody>
