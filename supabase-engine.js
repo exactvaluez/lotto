@@ -211,7 +211,7 @@
     async function fetchContextData(sb, ds) {
         const [cusRes, resRes, limNumRes] = await Promise.all([
             sb.from('customers').select('*').order('name', { ascending: true }),
-            sb.from('results').select('*').eq('date_sale', ds).limit(1),
+            sb.from('results').select('*').eq('date_sale', ds).order('id', { ascending: false }).limit(1),
             sb.from('limit_numbers').select('*').eq('date_sale', ds)
         ]);
         const customers = cusRes.data || [];
@@ -691,36 +691,106 @@
 
                 // 14. RESULTS (resultadd, resultupdate, delresult, getresult)
                 if (data.resultadd !== undefined || data.resultupdate !== undefined) {
-                    const ds = sess.date_sale;
-                    const payload = {
-                        date_sale: ds,
-                        hight: String(data.result1 || '').trim(),
-                        tlow1: String(data.result31 || '').trim(),
-                        tlow2: String(data.result32 || '').trim(),
-                        tlow3: String(data.result33 || '').trim(),
-                        tlow4: String(data.result34 || '').trim(),
-                        twolow: String(data.result2 || '').trim()
-                    };
-                    const { data: ex } = await sb.from('results').select('id').eq('date_sale', ds).limit(1);
-                    if (ex && ex.length > 0) {
-                        await sb.from('results').update(payload).eq('date_sale', ds);
-                    } else {
-                        await sb.from('results').insert([payload]);
+                    let ds = sess.date_sale;
+                    if (!ds) {
+                        try {
+                            const { data: srows } = await sb.from('sessions').select('date_sale').eq('status', 'active').order('id', { ascending: false }).limit(1);
+                            if (srows && srows.length > 0 && srows[0].date_sale) {
+                                ds = srows[0].date_sale;
+                                sess.date_sale = ds;
+                                saveSession(sess);
+                            }
+                        } catch (e) {
+                            console.warn('Failed to get active session date:', e);
+                        }
                     }
+                    if (!ds) ds = '20261022';
+
+                    const r1 = String(data.result1 || '').trim();
+                    const r31 = String(data.result31 || '').trim();
+                    const r32 = String(data.result32 || '').trim();
+                    const r33 = String(data.result33 || '').trim();
+                    const r34 = String(data.result34 || '').trim();
+                    const r2 = String(data.result2 || '').trim();
+
+                    const { data: ex, error: exErr } = await sb.from('results').select('id').eq('date_sale', ds).limit(1);
+                    if (exErr) {
+                        console.warn('Check results error:', exErr);
+                    }
+
+                    // Try PascalCase columns first (schema defined in supabase_setup.sql: "Tlow1", "Tlow2", "Tlow3", "Tlow4", "Twolow")
+                    const payloadPascal = {
+                        date_sale: ds,
+                        hight: r1,
+                        Tlow1: r31,
+                        Tlow2: r32,
+                        Tlow3: r33,
+                        Tlow4: r34,
+                        Twolow: r2
+                    };
+
+                    let saveOp;
+                    if (ex && ex.length > 0) {
+                        saveOp = await sb.from('results').update(payloadPascal).eq('date_sale', ds);
+                    } else {
+                        saveOp = await sb.from('results').insert([payloadPascal]);
+                    }
+
+                    // Fallback to lowercase columns if schema uses lowercase
+                    if (saveOp.error) {
+                        console.warn('PascalCase insert/update failed, retrying with lowercase columns:', saveOp.error);
+                        const payloadLower = {
+                            date_sale: ds,
+                            hight: r1,
+                            tlow1: r31,
+                            tlow2: r32,
+                            tlow3: r33,
+                            tlow4: r34,
+                            twolow: r2
+                        };
+                        if (ex && ex.length > 0) {
+                            saveOp = await sb.from('results').update(payloadLower).eq('date_sale', ds);
+                        } else {
+                            saveOp = await sb.from('results').insert([payloadLower]);
+                        }
+                    }
+
+                    if (saveOp.error) {
+                        console.error('Save results failed completely:', saveOp.error);
+                        const errText = saveOp.error.message || JSON.stringify(saveOp.error);
+                        if (window.swal) {
+                            swal('บันทึกผลไม่สำเร็จ', errText, 'error');
+                        } else {
+                            alert('บันทึกผลไม่สำเร็จ: ' + errText);
+                        }
+                        if (typeof error === 'function') error(saveOp.error);
+                        d.reject(saveOp.error);
+                        return;
+                    }
+
                     success('ok');
                     d.resolve('ok');
                     return;
                 }
                 if (data.delresult !== undefined) {
                     const id = parseInt(data.delresult, 10);
-                    await sb.from('results').delete().eq('id', id);
+                    let delOp;
+                    if (!isNaN(id) && id > 0) {
+                        delOp = await sb.from('results').delete().eq('id', id);
+                    } else {
+                        delOp = await sb.from('results').delete().eq('date_sale', sess.date_sale);
+                    }
+                    if (delOp && delOp.error) {
+                        console.error('Delete result error:', delOp.error);
+                        await sb.from('results').delete().eq('date_sale', sess.date_sale);
+                    }
                     success('ok');
                     d.resolve('ok');
                     return;
                 }
                 if (data.getresult !== undefined) {
-                    const ds = sess.date_sale;
-                    const { data: rrows } = await sb.from('results').select('*').eq('date_sale', ds).limit(1);
+                    const ds = sess.date_sale || '20261022';
+                    const { data: rrows } = await sb.from('results').select('*').eq('date_sale', ds).order('id', { ascending: false }).limit(1);
                     let obj = { hight: '', Tlow1: '', Tlow2: '', Tlow3: '', Tlow4: '', Twolow: '' };
                     if (rrows && rrows.length > 0) {
                         const r = rrows[0];
@@ -1767,7 +1837,7 @@
                                     data-Tlow1="${esc(r.Tlow1)}" data-Tlow2="${esc(r.Tlow2)}"
                                     data-Tlow3="${esc(r.Tlow3)}" data-Tlow4="${esc(r.Tlow4)}"
                                     data-low="${esc(r.Twolow)}">แก้ไข</button>
-                                <button type="button" class="btn btn-danger btn-sm" onclick="delresult(${r.id})">ลบ</button>
+                                <button type="button" class="btn btn-danger btn-sm" onclick="delresult(${r.id || 0})">ลบ</button>
                             </td>
                         </tr>`;
                     } else {
