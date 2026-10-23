@@ -1396,8 +1396,13 @@
                                         tlow: tlow
                                     },
                                     success: function(val) {
-                                        $('#mobilllog').load('billdetail_agent_list.php?acus=' + encodeURIComponent(window.current_acus) + '&abill=' + encodeURIComponent(window.current_abill));
-                                        $('#mlogbill').load('logbillagent.php?cus=' + encodeURIComponent(window.current_acus));
+                                        if ($('#mobilllog').length && window.current_acus) {
+                                            $('#mobilllog').load('billdetail_agent_list.php?acus=' + encodeURIComponent(window.current_acus) + '&abill=' + encodeURIComponent(window.current_abill));
+                                            $('#mlogbill').load('logbillagent.php?cus=' + encodeURIComponent(window.current_acus));
+                                        }
+                                        if ($('#showbillsale').length && window.current_sale_codeid) {
+                                            $('#showbillsale').load('showbillsale.php?codeid=' + encodeURIComponent(window.current_sale_codeid) + '&countrowinsert=' + encodeURIComponent(window.current_countrowinsert || ''));
+                                        }
                                         $('#showbill').load('logbill.php');
                                         if (typeof total1 === 'function') total1();
                                         if (typeof total2 === 'function') total2();
@@ -1445,6 +1450,160 @@
                                     });
                                 }
                             });
+                        };
+                    <\/script>`;
+                    $el.html(html);
+                    return;
+                }
+
+                // 5.5 showbillsale.php (รายงานผล หมายเลขที่บันทึกได้)
+                if (baseFile === 'showbillsale.php') {
+                    const codeid = urlParams.get('codeid') || '';
+                    const countrowinsert = parseInt(urlParams.get('countrowinsert') || '0', 10);
+                    window.current_sale_codeid = codeid;
+                    window.current_countrowinsert = countrowinsert;
+
+                    let bRows = [];
+                    if (codeid) {
+                        const { data } = await sb.from('bets').select('*').eq('codeid', codeid).order('id', { ascending: true });
+                        bRows = data || [];
+                    }
+                    if (bRows.length === 0 && countrowinsert > 0) {
+                        const { data } = await sb.from('bets').select('*').eq('date_sale', ds).order('id', { ascending: false }).limit(countrowinsert);
+                        if (data) bRows = data.reverse();
+                    }
+
+                    let tbody = '';
+                    let totalBuy = 0;
+                    (bRows || []).forEach(r => {
+                        const b1 = parseFloat(r.bet1 || 0);
+                        const b2 = parseFloat(r.bet2 || 0);
+                        const b3 = parseFloat(r.bet3 || 0);
+                        totalBuy += (b1 + b2 + b3);
+
+                        const id = r.id;
+                        const type_num = parseInt(r.num_type || String(r.num || '').length, 10);
+                        const ds_str = String(r.date_sale || '');
+                        const d_display = ds_str.length === 8 ? (ds_str.substring(6, 8) + '-' + ds_str.substring(4, 6) + '-' + ds_str.substring(0, 4)) : '';
+                        const dt_display = d_display ? (d_display + ' ' + (r.timenow || '')) : (r.timenow || '');
+
+                        tbody += `
+                        <tr style="text-align: center;">
+                            <td style="vertical-align: middle; font-weight: bold; font-size: 15px;">
+                                ${esc(r.num)}
+                            </td>
+                            <td style="vertical-align: middle;">
+                                <input type="text" class="form-control" style="text-align: center; font-weight: 500;" id="editten${id}" value="${b1}" disabled>
+                            </td>
+                            <td style="vertical-align: middle;">
+                                <input type="text" class="form-control" style="text-align: center; font-weight: 500;" id="edittos${id}" value="${b2}" disabled>
+                            </td>
+                            <td style="vertical-align: middle;">
+                                <input type="text" class="form-control" style="text-align: center; font-weight: 500;" id="edittlo${id}" value="${b3}" disabled>
+                            </td>
+                            <td style="vertical-align: middle; font-size: 13px;">
+                                ${esc(dt_display)}
+                            </td>
+                            <td style="vertical-align: middle;">
+                                <button type="button" class="btn btn-warning btn-sm" id="btneditbill${id}" onclick="editbill(${id}, ${type_num})">
+                                    <span id="edittext${id}">แก้ไข</span>
+                                </button>
+                            </td>
+                        </tr>`;
+                    });
+
+                    if (bRows.length === 0) {
+                        tbody = `<tr><td colspan="6" style="text-align: center; color: #999; padding: 20px;">ไม่พบรายการบันทึก</td></tr>`;
+                    }
+
+                    const attempts = countrowinsert > 0 ? countrowinsert : bRows.length;
+                    const successCount = bRows.length;
+
+                    const html = `
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered" style="margin-bottom: 0;">
+                            <thead>
+                                <tr style="background: #fff;">
+                                    <th style="text-align: center; vertical-align: middle;">หมายเลข</th>
+                                    <th style="text-align: center; vertical-align: middle;">บน/เต็ง</th>
+                                    <th style="text-align: center; vertical-align: middle;">ล่าง/โต๊ด</th>
+                                    <th style="text-align: center; vertical-align: middle;">3ตัวล่าง</th>
+                                    <th style="text-align: center; vertical-align: middle;">วันที่บันทึก</th>
+                                    <th style="text-align: center; vertical-align: middle;">จัดการ แก้ไข</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tbody}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div style="text-align: center; padding: 15px 0 5px 0;">
+                        <h3 style="font-weight: bold; margin: 10px 0 5px 0; font-size: 22px;">
+                            ยอดรวมบิลนี้ที่ซื้อได้ <span style="color: red; font-size: 26px;">${nf(totalBuy)}</span> บาท
+                        </h3>
+                        <p style="font-size: 14px; color: #555; margin: 0;">
+                            รายการทั้งหมด ${attempts} รายการ บันทึกสำเร็จ ${successCount} รายการ
+                        </p>
+                    </div>
+                    <script>
+                        window.current_sale_codeid = ${JSON.stringify(codeid)};
+                        window.current_countrowinsert = ${JSON.stringify(countrowinsert)};
+
+                        window.editbill = function(id, type_number) {
+                            var asd = document.getElementById('btneditbill' + id);
+                            if (!asd) return;
+
+                            if (document.getElementById('editten' + id).disabled == true) {
+                                document.getElementById('editten' + id).disabled = false;
+                                document.getElementById('edittos' + id).disabled = false;
+                                if (type_number == 3) {
+                                    document.getElementById('edittlo' + id).disabled = false;
+                                }
+                                document.getElementById('edittext' + id).innerHTML = "บันทึก";
+                                asd.setAttribute('class', 'btn btn-success btn-sm');
+                                document.getElementById('editten' + id).focus();
+                                document.getElementById('editten' + id).select();
+                            } else {
+                                if (document.getElementById('editten' + id).value == '') document.getElementById('editten' + id).value = 0;
+                                if (document.getElementById('edittlo' + id).value == '') document.getElementById('edittlo' + id).value = 0;
+                                if (document.getElementById('edittos' + id).value == '') document.getElementById('edittos' + id).value = 0;
+
+                                var tenk = document.getElementById('editten' + id).value;
+                                var tlow = document.getElementById('edittlo' + id).value;
+                                var tose = document.getElementById('edittos' + id).value;
+
+                                document.getElementById('editten' + id).disabled = true;
+                                document.getElementById('edittlo' + id).disabled = true;
+                                document.getElementById('edittos' + id).disabled = true;
+                                document.getElementById('edittext' + id).innerHTML = "แก้ไข";
+                                asd.setAttribute('class', 'btn btn-warning btn-sm');
+
+                                $.ajax({
+                                    method: "POST",
+                                    url: "lotto.php",
+                                    data: {
+                                        editbill: id,
+                                        tenk: tenk,
+                                        tose: tose,
+                                        tlow: tlow
+                                    },
+                                    success: function(val) {
+                                        if ($('#showbillsale').length && window.current_sale_codeid) {
+                                            $('#showbillsale').load('showbillsale.php?codeid=' + encodeURIComponent(window.current_sale_codeid) + '&countrowinsert=' + encodeURIComponent(window.current_countrowinsert || ''));
+                                        }
+                                        if ($('#mobilllog').length && window.current_acus) {
+                                            $('#mobilllog').load('billdetail_agent_list.php?acus=' + encodeURIComponent(window.current_acus) + '&abill=' + encodeURIComponent(window.current_abill));
+                                            $('#mlogbill').load('logbillagent.php?cus=' + encodeURIComponent(window.current_acus));
+                                        }
+                                        $('#showbill').load('logbill.php');
+                                        if (typeof total1 === 'function') total1();
+                                        if (typeof total2 === 'function') total2();
+                                        if (typeof total3 === 'function') total3();
+                                        if (typeof totalsale === 'function') totalsale();
+                                    }
+                                });
+                            }
                         };
                     <\/script>`;
                     $el.html(html);
