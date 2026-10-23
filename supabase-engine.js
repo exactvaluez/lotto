@@ -524,7 +524,11 @@
                         });
                     }
                     if (payload.length > 0) {
-                        await sb.from('bets').insert(payload);
+                        const { data: insData } = await sb.from('bets').insert(payload).select('*');
+                        window._last_saved_bets = (insData && insData.length > 0) ? insData : payload;
+                        window._last_saved_codeid = codeid;
+                        window._last_saved_cus = payload[0].cus;
+                        window._last_saved_bill = payload[0].bill;
                     }
                     const cnt = String(payload.length);
                     success(cnt);
@@ -1401,7 +1405,7 @@
                                             $('#mlogbill').load('logbillagent.php?cus=' + encodeURIComponent(window.current_acus));
                                         }
                                         if ($('#showbillsale').length && window.current_sale_codeid) {
-                                            $('#showbillsale').load('showbillsale.php?codeid=' + encodeURIComponent(window.current_sale_codeid) + '&countrowinsert=' + encodeURIComponent(window.current_countrowinsert || ''));
+                                            $('#showbillsale').load('showbillsale.php?codeid=' + encodeURIComponent(window.current_sale_codeid) + '&countrowinsert=' + encodeURIComponent(window.current_countrowinsert || '') + '&cus=' + encodeURIComponent(window.current_sale_cus || '') + '&bill=' + encodeURIComponent(window.current_sale_bill || ''));
                                         }
                                         $('#showbill').load('logbill.php');
                                         if (typeof total1 === 'function') total1();
@@ -1460,17 +1464,40 @@
                 if (baseFile === 'showbillsale.php') {
                     const codeid = urlParams.get('codeid') || '';
                     const countrowinsert = parseInt(urlParams.get('countrowinsert') || '0', 10);
+                    const cus = (urlParams.get('cus') || (window._last_saved_cus || '')).trim();
+                    const bill = (urlParams.get('bill') || (window._last_saved_bill || '')).trim();
+
                     window.current_sale_codeid = codeid;
                     window.current_countrowinsert = countrowinsert;
+                    window.current_sale_cus = cus;
+                    window.current_sale_bill = bill;
 
                     let bRows = [];
-                    if (codeid) {
-                        const { data } = await sb.from('bets').select('*').eq('codeid', codeid).order('id', { ascending: true });
-                        bRows = data || [];
+                    // 1. If in-memory saved batch matches this transaction, use it directly (guarantees exact items of this bill)
+                    if (window._last_saved_bets && window._last_saved_bets.length > 0 &&
+                        ((codeid && codeid === window._last_saved_codeid) || (cus && window._last_saved_cus === cus && bill && window._last_saved_bill === bill))) {
+                        bRows = window._last_saved_bets;
                     }
+
+                    // 2. Query by unique codeid AND date_sale
+                    if (bRows.length === 0 && codeid && codeid !== '065317') {
+                        const { data } = await sb.from('bets').select('*').eq('codeid', codeid).eq('date_sale', ds).order('id', { ascending: true });
+                        if (data && data.length > 0) bRows = data;
+                    }
+
+                    // 3. Query specifically by customer and bill number for this date_sale
+                    if (bRows.length === 0 && cus && bill) {
+                        const { data } = await sb.from('bets').select('*').eq('date_sale', ds).eq('cus', cus).eq('bill', bill).order('id', { ascending: true });
+                        if (data && data.length > 0) bRows = data;
+                    }
+
+                    // 4. Fallback to latest rows of this date_sale limited by countrowinsert
                     if (bRows.length === 0 && countrowinsert > 0) {
-                        const { data } = await sb.from('bets').select('*').eq('date_sale', ds).order('id', { ascending: false }).limit(countrowinsert);
-                        if (data) bRows = data.reverse();
+                        let q = sb.from('bets').select('*').eq('date_sale', ds);
+                        if (cus) q = q.eq('cus', cus);
+                        if (bill) q = q.eq('bill', bill);
+                        const { data } = await q.order('id', { ascending: false }).limit(countrowinsert);
+                        if (data && data.length > 0) bRows = data.reverse();
                     }
 
                     let tbody = '';
@@ -1590,7 +1617,7 @@
                                     },
                                     success: function(val) {
                                         if ($('#showbillsale').length && window.current_sale_codeid) {
-                                            $('#showbillsale').load('showbillsale.php?codeid=' + encodeURIComponent(window.current_sale_codeid) + '&countrowinsert=' + encodeURIComponent(window.current_countrowinsert || ''));
+                                            $('#showbillsale').load('showbillsale.php?codeid=' + encodeURIComponent(window.current_sale_codeid) + '&countrowinsert=' + encodeURIComponent(window.current_countrowinsert || '') + '&cus=' + encodeURIComponent(window.current_sale_cus || '') + '&bill=' + encodeURIComponent(window.current_sale_bill || ''));
                                         }
                                         if ($('#mobilllog').length && window.current_acus) {
                                             $('#mobilllog').load('billdetail_agent_list.php?acus=' + encodeURIComponent(window.current_acus) + '&abill=' + encodeURIComponent(window.current_abill));
